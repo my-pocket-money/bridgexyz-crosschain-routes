@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>bridge.xyz crypto -> crypto routes</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindplus/elements@1" type="module"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        bridge: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                            700: '#0369a1',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom animations and transitions */
+        .result-item {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .result-item:hover {
+            transform: translateY(-1px);
+        }
+
+        .status-hidden {
+            opacity: 0;
+        }
+
+        /* Custom grid for better responsive behavior */
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 1rem;
+        }
+
+        /* Loading animation */
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        .loading-pulse {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        /* Gradient animation */
+        @keyframes gradient {
+            0% {
+                background-position: 0% 50%;
+            }
+
+            50% {
+                background-position: 100% 50%;
+            }
+
+            100% {
+                background-position: 0% 50%;
+            }
+        }
+
+        .animate-gradient {
+            background-size: 200% 200%;
+            animation: gradient 3s ease infinite;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-50 min-h-screen">
+    <div class="max-w-7xl mx-auto px-4 py-8">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-gray-900 mb-4">
+                <a href="https://www.bridge.xyz/" target="_blank" rel="noopener noreferrer"
+                    class="bg-gradient-to-r from-bridge-600 to-blue-600 bg-clip-text text-transparent animate-gradient hover:from-bridge-700 hover:to-blue-700 transition-all duration-200">
+                    Bridge.xyz
+                </a>
+                <span class="block sm:inline">Cross-Chain Routes</span>
+            </h1>
+            <p class="text-lg text-gray-600 max-w-2xl mx-auto">
+                Click on a source chain/currency combination to see compatible destinations, or click on a destination
+                to see compatible sources.
+            </p>
+        </div>
+
+        <!-- Instructions Card -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
+            <div class="flex items-center gap-3 mb-3">
+                <div class="w-8 h-8 bg-bridge-100 rounded-lg flex items-center justify-center">
+                    <svg class="w-5 h-5 text-bridge-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+                <h3 class="text-lg font-semibold text-gray-900">How to Use</h3>
+            </div>
+            <ul class="text-gray-600 space-y-2">
+                <li class="flex items-center gap-2">
+                    <div class="w-2 h-2 bg-bridge-500 rounded-full"></div>
+                    Select a <strong>source</strong> to see all compatible destinations
+                </li>
+                <li class="flex items-center gap-2">
+                    <div class="w-2 h-2 bg-green-500 rounded-full"></div>
+                    Select a <strong>destination</strong> to see all compatible sources
+                </li>
+                <li class="flex items-center gap-2">
+                    <div class="w-2 h-2 bg-purple-500 rounded-full"></div>
+                    Double-click anywhere to clear selections
+                </li>
+            </ul>
+        </div>
+
+        <!-- Main Content -->
+        <div class="grid lg:grid-cols-2 gap-8">
+            <!-- Source Section -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <div class="flex items-center gap-3 mb-6">
+                    <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                        <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+                        </svg>
+                    </div>
+                    <h2 class="text-2xl font-bold text-gray-900">Source Chains</h2>
+                    <span id="sourceCount"
+                        class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 ml-2">
+                        Loading...
+                    </span>
+                </div>
+                <div class="results-grid" id="sourceGrid">
+                    <!-- Source items will be populated here -->
+                </div>
+            </div>
+
+            <!-- Destination Section -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <div class="flex items-center gap-3 mb-6">
+                    <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                        <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z">
+                            </path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                        </svg>
+                    </div>
+                    <h2 class="text-2xl font-bold text-gray-900">Destination Chains</h2>
+                    <span id="destinationCount"
+                        class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 ml-2">
+                        Loading...
+                    </span>
+                </div>
+                <div class="results-grid" id="destinationGrid">
+                    <!-- Destination items will be populated here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="text-center mt-12 pt-8 border-t border-gray-200">
+            <p class="text-gray-500 text-sm">
+                Data sourced from <a
+                    href="https://apidocs.bridge.xyz/get-started/introduction/what-we-support/blockchains"
+                    class="text-bridge-600 hover:text-bridge-700 underline" target="_blank">Bridge API Documentation</a>
+            </p>
+        </div>
+    </div>
+
+    <script>
+        // Data model extracted from the table
+        const crossChainSupport = {
+            // Format: "SourceChain-SourceCurrency": ["DestChain-DestCurrency", ...]
+            "Arbitrum-USDC": [
+                "Avalanche C-Chain-USDC", "Base-USDC", "Base-EURC", "Base-USDB",
+                "Ethereum-DAI", "Ethereum-PYUSD", "Ethereum-USDC", "Ethereum-USDT",
+                "Optimism-USDC", "Polygon-USDC", "Solana-USDC", "Solana-EURC",
+                "Solana-PYUSD", "Solana-USDB", "Stellar-USDC", "Tron-USDT"
+            ],
+
+            "Avalanche C-Chain-USDC": [
+                "Arbitrum-USDC", "Base-USDC", "Base-EURC", "Base-USDB",
+                "Ethereum-DAI", "Ethereum-PYUSD", "Ethereum-USDC", "Ethereum-USDT",
+                "Optimism-USDC", "Polygon-USDC", "Solana-USDC", "Solana-EURC",
+                "Solana-PYUSD", "Solana-USDB", "Stellar-USDC", "Tron-USDT"
+            ],
+
+            "Base-USDC": [
+                "Arbitrum-USDC", "Avalanche C-Chain-USDC", "Base-EURC", "Base-USDB",
+                "Ethereum-DAI", "Ethereum-PYUSD", "Ethereum-USDC", "Ethereum-USDT",
+                "Optimism-USDC", "Polygon-USDC", "Solana-USDC", "Solana-EURC",
+                "Solana-PYUSD", "Solana-USDB", "Stellar-USDC", "Tron-USDT"
+            ],
+
+            "Base-EURC": [
+                "Base-EURC", "Solana-EURC"
+            ],
+
+            "Base-USDB": [
+                "Arbitrum-USDC", "Avalanche C-Chain-USDC", "Base-USDC", "Base-USDB",
+                "Bitcoin-BTC", "Ethereum-DAI", "Ethereum-PYUSD", "Ethereum-USDC",
+                "Ethereum-USDT", "Optimism-USDC", "Polygon-USDC", "Solana-PYUSD",
+                "Solana-USDB", "Stellar-USDC", "Tron-USDT"
+            ],
+
+            "Bitcoin-BTC": [],
+
+            "Ethereum-DAI": [
+                "Arbitrum-USDC", "Avalanche C-Chain-USDC", "Base-USDC",
+                "Ethereum-USDC", "Ethereum-USDT", "Optimism-USDC", "Polygon-USDC",
+                "Solana-USDC", "Stellar-USDC"
+            ],
+
+            "Ethereum-ETH": [],
+
+            "Ethereum-PYUSD": [
+                "Arbitrum-USDC", "Avalanche C-Chain-USDC", "Base-USDC", "Base-EURC",
+                "Ethereum-USDC", "Optimism-USDC", "Polygon-USDC", "Solana-USDC",
+                "Solana-PYUSD", "Stellar-USDC"
+            ],
+
+            "Ethereum-USDC": [
+                "Arbitrum-USDC", "Avalanche C-Chain-USDC", "Base-USDC", "Base-USDB",
+                "Ethereum-DAI", "Ethereum-PYUSD", "Ethereum-USDT", "Optimism-USDC",
+                "Polygon-USDC", "Solana-USDC", "Solana-EURC", "Solana-PYUSD",
+                "Solana-USDB", "Stellar-USDC", "Tron-USDT"
+            ],
+
+            "Ethereum-USDT": [
+                "Arbitrum-USDC", "Avalanche C-Chain-USDC", "Base-USDC", "Base-EURC",
+                "Base-USDB", "Ethereum-USDC", "Optimism-USDC", "Polygon-USDC",
+                "Solana-USDC", "Stellar-USDC", "Tron-USDT"
+            ],
+
+            "Optimism-USDC": [
+                "Arbitrum-USDC", "Avalanche C-Chain-USDC", "Base-USDC", "Base-EURC",
+                "Base-USDB", "Ethereum-DAI", "Ethereum-PYUSD", "Ethereum-USDC",
+                "Ethereum-USDT", "Polygon-USDC", "Solana-USDC", "Solana-EURC",
+                "Solana-PYUSD", "Solana-USDB", "Stellar-USDC", "Tron-USDT"
+            ],
+
+            "Polygon-USDC": [
+                "Arbitrum-USDC", "Avalanche C-Chain-USDC", "Base-USDC", "Base-EURC",
+                "Base-USDB", "Ethereum-DAI", "Ethereum-PYUSD", "Ethereum-USDC",
+                "Ethereum-USDT", "Optimism-USDC", "Solana-USDC", "Solana-EURC",
+                "Solana-PYUSD", "Solana-USDB", "Stellar-USDC", "Tron-USDT"
+            ],
+
+            "Solana-USDC": [
+                "Arbitrum-USDC", "Avalanche C-Chain-USDC", "Base-USDC", "Base-USDB",
+                "Ethereum-DAI", "Ethereum-PYUSD", "Ethereum-USDC", "Ethereum-USDT",
+                "Optimism-USDC", "Polygon-USDC", "Solana-EURC", "Solana-PYUSD",
+                "Solana-USDB", "Stellar-USDC", "Tron-USDT"
+            ],
+
+            "Solana-PYUSD": [
+                "Arbitrum-USDC", "Avalanche C-Chain-USDC", "Base-USDC",
+                "Ethereum-PYUSD", "Ethereum-USDC", "Optimism-USDC", "Polygon-USDC",
+                "Solana-USDC", "Stellar-USDC"
+            ],
+
+            "Solana-EURC": [
+                "Base-EURC", "Solana-EURC"
+            ],
+
+            "Solana-USDP": [
+                "Arbitrum-USDC", "Avalanche C-Chain-USDC", "Base-USDC",
+                "Ethereum-USDC", "Optimism-USDC", "Polygon-USDC", "Solana-USDC",
+                "Solana-PYUSD"
+            ],
+
+            "Solana-USDB": [
+                "Arbitrum-USDC", "Avalanche C-Chain-USDC", "Base-USDC", "Base-USDB",
+                "Ethereum-USDC", "Ethereum-USDT", "Optimism-USDC", "Polygon-USDC",
+                "Solana-USDC", "Solana-USDB", "Stellar-USDC", "Tron-USDT"
+            ],
+
+            "Stellar-USDC": [
+                "Arbitrum-USDC", "Avalanche C-Chain-USDC", "Base-USDC", "Base-EURC",
+                "Base-USDB", "Ethereum-DAI", "Ethereum-PYUSD", "Ethereum-USDC",
+                "Ethereum-USDT", "Optimism-USDC", "Polygon-USDC", "Solana-USDC",
+                "Solana-EURC", "Solana-PYUSD", "Solana-USDB", "Tron-USDT"
+            ],
+
+            "Tron-USDT": [
+                "Arbitrum-USDC", "Avalanche C-Chain-USDC", "Base-USDC", "Base-USDB",
+                "Ethereum-USDC", "Ethereum-USDT", "Optimism-USDC", "Polygon-USDC",
+                "Solana-USDC", "Solana-USDB", "Stellar-USDC"
+            ]
+        };
+
+        // Global state
+        let selectedSource = null;
+        let selectedDestination = null;
+
+        // Get all unique source combinations
+        function getAllSources() {
+            return Object.keys(crossChainSupport).sort();
+        }
+
+        // Get all unique destination combinations
+        function getAllDestinations() {
+            const destinations = new Set();
+            Object.values(crossChainSupport).flat().forEach(dest => {
+                destinations.add(dest);
+            });
+            return Array.from(destinations).sort();
+        }
+
+        // Get reverse mapping: destination -> list of compatible sources
+        function getReverseLookup() {
+            const reverseLookup = {};
+            Object.entries(crossChainSupport).forEach(([source, destinations]) => {
+                destinations.forEach(dest => {
+                    if (!reverseLookup[dest]) {
+                        reverseLookup[dest] = [];
+                    }
+                    reverseLookup[dest].push(source);
+                });
+            });
+            return reverseLookup;
+        }
+
+        // Create result item HTML
+        function createResultItem(key, type) {
+            const [chain, currency] = key.split('-');
+            return `
+                <div class="result-item bg-white border-2 border-gray-200 rounded-xl p-4 cursor-pointer hover:shadow-md hover:border-gray-300 transition-all duration-200 group" 
+                     data-key="${key}" data-type="${type}">
+                    <div class="flex items-center gap-3">
+                        <div class="flex-shrink-0">
+                            <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                                <span class="status-icon text-xl opacity-0 transition-opacity duration-200">✓</span>
+                            </div>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="font-semibold text-gray-900 group-hover:text-bridge-700 transition-colors duration-200 truncate">
+                                ${chain}
+                            </div>
+                            <div class="text-sm text-gray-500 font-medium">
+                                ${currency}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Create loading skeleton
+        function createLoadingSkeleton(count = 8) {
+            return Array(count).fill(0).map(() => `
+                <div class="bg-white border-2 border-gray-200 rounded-xl p-4 loading-pulse">
+                    <div class="flex items-center gap-3">
+                        <div class="flex-shrink-0">
+                            <div class="w-8 h-8 rounded-lg bg-gray-200"></div>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="h-4 bg-gray-200 rounded-md mb-2"></div>
+                            <div class="h-3 bg-gray-200 rounded-md w-2/3"></div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Populate source grid
+        function populateSourceGrid() {
+            const sourceGrid = document.getElementById('sourceGrid');
+
+            // Show loading first
+            sourceGrid.innerHTML = createLoadingSkeleton();
+
+            // Simulate slight delay for smooth loading effect
+            setTimeout(() => {
+                const sources = getAllSources();
+                sourceGrid.innerHTML = sources.map(source =>
+                    createResultItem(source, 'source')
+                ).join('');
+
+                // Update count badge
+                document.getElementById('sourceCount').textContent = `${sources.length} chains`;
+            }, 300);
+        }
+
+        // Populate destination grid
+        function populateDestinationGrid() {
+            const destinationGrid = document.getElementById('destinationGrid');
+
+            // Show loading first
+            destinationGrid.innerHTML = createLoadingSkeleton();
+
+            // Simulate slight delay for smooth loading effect
+            setTimeout(() => {
+                const destinations = getAllDestinations();
+                destinationGrid.innerHTML = destinations.map(destination =>
+                    createResultItem(destination, 'destination')
+                ).join('');
+
+                // Update count badge
+                document.getElementById('destinationCount').textContent = `${destinations.length} chains`;
+            }, 500);
+        }
+
+        // Handle source selection
+        function selectSource(sourceKey) {
+            // Clear previous selections
+            clearSelections();
+
+            selectedSource = sourceKey;
+            const sourceElement = document.querySelector(`[data-key="${sourceKey}"][data-type="source"]`);
+
+            // Style selected source
+            sourceElement.classList.remove('border-gray-200', 'hover:border-gray-300');
+            sourceElement.classList.add('border-bridge-500', 'bg-bridge-50', 'shadow-lg');
+
+            const iconContainer = sourceElement.querySelector('.w-8.h-8');
+            iconContainer.classList.remove('bg-gradient-to-br', 'from-gray-100', 'to-gray-200');
+            iconContainer.classList.add('bg-gradient-to-br', 'from-bridge-400', 'to-bridge-600');
+
+            // Show compatibility in destination grid
+            const supportedDestinations = crossChainSupport[sourceKey] || [];
+            const destinationItems = document.querySelectorAll('[data-type="destination"]');
+
+            destinationItems.forEach(item => {
+                const destKey = item.dataset.key;
+                const statusIcon = item.querySelector('.status-icon');
+                const iconContainer = item.querySelector('.w-8.h-8');
+
+                if (supportedDestinations.includes(destKey)) {
+                    // Supported destination
+                    item.classList.remove('border-gray-200');
+                    item.classList.add('border-green-300', 'bg-green-50');
+                    iconContainer.classList.remove('bg-gradient-to-br', 'from-gray-100', 'to-gray-200');
+                    iconContainer.classList.add('bg-gradient-to-br', 'from-green-400', 'to-green-600');
+                    statusIcon.textContent = '✓';
+                    statusIcon.classList.remove('opacity-0');
+                    statusIcon.classList.add('text-white');
+                } else {
+                    // Not supported destination
+                    item.classList.remove('border-gray-200');
+                    item.classList.add('border-red-300', 'bg-red-50');
+                    iconContainer.classList.remove('bg-gradient-to-br', 'from-gray-100', 'to-gray-200');
+                    iconContainer.classList.add('bg-gradient-to-br', 'from-red-400', 'to-red-600');
+                    statusIcon.textContent = '✗';
+                    statusIcon.classList.remove('opacity-0');
+                    statusIcon.classList.add('text-white');
+                }
+            });
+        }
+
+        // Handle destination selection
+        function selectDestination(destinationKey) {
+            // Clear previous selections
+            clearSelections();
+
+            selectedDestination = destinationKey;
+            const destElement = document.querySelector(`[data-key="${destinationKey}"][data-type="destination"]`);
+
+            // Style selected destination
+            destElement.classList.remove('border-gray-200', 'hover:border-gray-300');
+            destElement.classList.add('border-green-500', 'bg-green-50', 'shadow-lg');
+
+            const iconContainer = destElement.querySelector('.w-8.h-8');
+            iconContainer.classList.remove('bg-gradient-to-br', 'from-gray-100', 'to-gray-200');
+            iconContainer.classList.add('bg-gradient-to-br', 'from-green-400', 'to-green-600');
+
+            // Show compatibility in source grid
+            const reverseLookup = getReverseLookup();
+            const supportedSources = reverseLookup[destinationKey] || [];
+            const sourceItems = document.querySelectorAll('[data-type="source"]');
+
+            sourceItems.forEach(item => {
+                const sourceKey = item.dataset.key;
+                const statusIcon = item.querySelector('.status-icon');
+                const iconContainer = item.querySelector('.w-8.h-8');
+
+                if (supportedSources.includes(sourceKey)) {
+                    // Supported source
+                    item.classList.remove('border-gray-200');
+                    item.classList.add('border-bridge-300', 'bg-bridge-50');
+                    iconContainer.classList.remove('bg-gradient-to-br', 'from-gray-100', 'to-gray-200');
+                    iconContainer.classList.add('bg-gradient-to-br', 'from-bridge-400', 'to-bridge-600');
+                    statusIcon.textContent = '✓';
+                    statusIcon.classList.remove('opacity-0');
+                    statusIcon.classList.add('text-white');
+                } else {
+                    // Not supported source
+                    item.classList.remove('border-gray-200');
+                    item.classList.add('border-red-300', 'bg-red-50');
+                    iconContainer.classList.remove('bg-gradient-to-br', 'from-gray-100', 'to-gray-200');
+                    iconContainer.classList.add('bg-gradient-to-br', 'from-red-400', 'to-red-600');
+                    statusIcon.textContent = '✗';
+                    statusIcon.classList.remove('opacity-0');
+                    statusIcon.classList.add('text-white');
+                }
+            });
+        }
+
+        // Clear all selections and status indicators
+        function clearSelections() {
+            selectedSource = null;
+            selectedDestination = null;
+
+            const allItems = document.querySelectorAll('.result-item');
+            allItems.forEach(item => {
+                // Reset to default state
+                item.className = 'result-item bg-white border-2 border-gray-200 rounded-xl p-4 cursor-pointer hover:shadow-md hover:border-gray-300 transition-all duration-200 group';
+
+                // Reset icon container
+                const iconContainer = item.querySelector('.w-8.h-8');
+                iconContainer.className = 'w-8 h-8 rounded-lg bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center';
+
+                // Reset status icon
+                const statusIcon = item.querySelector('.status-icon');
+                statusIcon.className = 'status-icon text-xl opacity-0 transition-opacity duration-200';
+                statusIcon.textContent = '✓';
+            });
+        }
+
+        // Add click event listeners to grid items
+        function addEventListeners() {
+            // Event delegation for source grid
+            document.getElementById('sourceGrid').addEventListener('click', function (e) {
+                const resultItem = e.target.closest('.result-item');
+                if (resultItem) {
+                    const sourceKey = resultItem.dataset.key;
+                    selectSource(sourceKey);
+                }
+            });
+
+            // Event delegation for destination grid  
+            document.getElementById('destinationGrid').addEventListener('click', function (e) {
+                const resultItem = e.target.closest('.result-item');
+                if (resultItem) {
+                    const destinationKey = resultItem.dataset.key;
+                    selectDestination(destinationKey);
+                }
+            });
+
+            // Optional: Double-click to clear selection
+            document.addEventListener('dblclick', function (e) {
+                if (e.target.closest('.max-w-7xl')) {
+                    clearSelections();
+                }
+            });
+        }
+
+        // Initialize the interface
+        function initialize() {
+            populateSourceGrid();
+            populateDestinationGrid();
+            addEventListeners();
+        }
+
+        // Initialize when page loads
+        initialize();
+    </script>
+</body>
+
+</html>
