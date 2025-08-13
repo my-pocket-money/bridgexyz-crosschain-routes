@@ -312,7 +312,11 @@
 
         // Get all unique source combinations
         function getAllSources() {
-            return Object.keys(crossChainSupport).sort();
+            return Object.keys(crossChainSupport).sort((a, b) => {
+                const chainA = a.split('-')[0];
+                const chainB = b.split('-')[0];
+                return chainA.localeCompare(chainB);
+            });
         }
 
         // Get all unique destination combinations
@@ -321,7 +325,11 @@
             Object.values(crossChainSupport).flat().forEach(dest => {
                 destinations.add(dest);
             });
-            return Array.from(destinations).sort();
+            return Array.from(destinations).sort((a, b) => {
+                const chainA = a.split('-')[0];
+                const chainB = b.split('-')[0];
+                return chainA.localeCompare(chainB);
+            });
         }
 
         // Get reverse mapping: destination -> list of compatible sources
